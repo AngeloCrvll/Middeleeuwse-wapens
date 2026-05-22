@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teachable Machine Weapon Viewer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <section class="weapon">
+        <section class="info">
+            <H1 id="weaponTitle">Longsword</H1>
+            <p id="weaponDesc">The longsword was a versatile two-handed weapon used across Europe between the 13th and 16th centuries. It was effective in both armored and unarmored combat.</p>
+        </section>
+
+        <div class="seperateTBL"></div>
+
+        <section class="image">
+            <div id="weapon"></div>
+        </section>
+    </section>
+
+    <div class="seperateLR"></div>
+
+    <section class="instructions">
+        <section class="rotate">
+            <div>
+                <img class="hand" src="img/point.svg" alt="">
+                <h3>Point to rotate the object</h3>
+            </div>
+            <div id="webcam-container" style="display: none;"></div>
+            <div id="label-container" style="display: none;"></div>
+        </section>
+
+        <div class="seperateTBR"></div>
+
+        <section class="select">
+            <h3 class="select">Select your preferred weapon</h3>
+            <div class="choices">
+                <div class="choice" onclick="changeWeapon('sword')">
+                    <img class="hand" src="img/1.svg" alt="">
+                    <div class="img1"></div>
+                    <div class="vieuws">
+                        <img class="eye" src="img/eye.svg" alt="">
+                        <p id="count-sword">0</p>
+                    </div>
+                </div>
+                <div class="choice" onclick="changeWeapon('hellebaard')">
+                    <img class="hand" src="img/2.svg" alt="">
+                    <div class="img2"></div>
+                    <div class="vieuws">
+                        <img class="eye" src="img/eye.svg" alt="">
+                        <p id="count-hellebaard">0</p>
+                    </div>
+                </div>
+                <div class="choice" onclick="changeWeapon('morgenster')">
+                    <img class="hand" src="img/3.svg" alt="">
+                    <div class="img3"></div>
+                    <div class="vieuws">
+                        <img class="eye" src="img/eye.svg" alt="">
+                        <p id="count-morgenster">0</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script src="weapon.js" type="module"></script>
+    <script>
+        const URL = "./my_model/";
+        let model, webcam, labelContainer, maxPredictions;
+        let mlInitialized = false;
+        let currentWeaponType = "sword";
+        let lastWeaponChange = 0;
+        const WEAPON_CHANGE_COOLDOWN = 2000;
+
+        // Tellers ophalen uit localStorage of starten op 0
+        const weaponCounts = JSON.parse(localStorage.getItem("weaponCounts")) || {
+            sword: 0,
+            hellebaard: 0,
+            morgenster: 0
+        };
+
+        // Tellers direct tonen bij laden
+        window.addEventListener("load", () => {
+            ["sword", "hellebaard", "morgenster"].forEach(w => {
+                document.getElementById("count-" + w).textContent = weaponCounts[w];
+            });
+        });
+
+        async function initML() {
+            if (mlInitialized) return;
+            mlInitialized = true;
+
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            try {
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+
+                const flip = true;
+                webcam = new tmImage.Webcam(200, 200, flip);
+                await webcam.setup();
+                await webcam.play();
+                window.requestAnimationFrame(loop);
+
+                document.getElementById("webcam-container").appendChild(webcam.canvas);
+                labelContainer = document.getElementById("label-container");
+                for (let i = 0; i < maxPredictions; i++) {
+                    labelContainer.appendChild(document.createElement("div"));
+                }
+
+                console.log("Teachable Machine initialized successfully");
+            } catch (error) {
+                console.error("Could not load Teachable Machine model - make sure my_model folder exists with model.json and metadata.json");
+            }
+        }
+
+        async function loop() {
+            if (!webcam) return;
+            webcam.update();
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+            if (!model) return;
+            const prediction = await model.predict(webcam.canvas);
+
+            let highestIndex = 0;
+            let highestPrediction = prediction[0].probability;
+
+            for (let i = 1; i < maxPredictions; i++) {
+                if (prediction[i].probability > highestPrediction) {
+                    highestPrediction = prediction[i].probability;
+                    highestIndex = i;
+                }
+            }
+
+            if (highestPrediction > 0.7) {
+                const className = prediction[highestIndex].className.trim().toLowerCase();
+
+                // Rotate gesture
+                if (className === "rotate" || className === "point") {
+                    const now = Date.now();
+                    if (now - lastWeaponChange > WEAPON_CHANGE_COOLDOWN) {
+                        window.dispatchEvent(new CustomEvent('gestureUpdate', {
+                            detail: { rotating: true }
+                        }));
+                        lastWeaponChange = now;
+                    }
+                    return;
+                }
+
+                // Weapon selection
+                let weaponType = null;
+
+                if (className === "1") {
+                    weaponType = "sword";
+                } else if (className === "2") {
+                    weaponType = "hellebaard";
+                } else if (className === "3") {
+                    weaponType = "morgenster";
+                }
+
+                if (weaponType && weaponType !== "none" && weaponType !== currentWeaponType) {
+                    const now = Date.now();
+                    if (now - lastWeaponChange > WEAPON_CHANGE_COOLDOWN) {
+                        console.log("Gesture recognized:", className, "-> Switching to:", weaponType);
+                        changeWeapon(weaponType);
+                        lastWeaponChange = now;
+                    }
+                }
+            }
+        }
+
+        function changeWeapon(weaponType) {
+            if (!weaponType || weaponType === "none") return;
+            const weaponData = {
+                sword: {
+                    title: "Zwaard",
+                    desc: "The longsword was a versatile two-handed weapon used across Europe between the 13th and 16th centuries."
+                },
+                hellebaard: {
+                    title: "Hellebaard",
+                    desc: "The halberd is a two-handed polearm that combines elements of a spear, axe, and hook."
+                },
+                morgenster: {
+                    title: "Morgenster",
+                    desc: "The morning star is a medieval weapon consisting of a spiked metal ball attached to a handle."
+                }
+            };
+
+            const weapon = weaponData[weaponType];
+            if (weapon) {
+                currentWeaponType = weaponType;
+                document.getElementById("weaponTitle").textContent = weapon.title;
+                document.getElementById("weaponDesc").textContent = weapon.desc;
+
+                // Teller ophogen, opslaan en updaten
+                weaponCounts[weaponType]++;
+                localStorage.setItem("weaponCounts", JSON.stringify(weaponCounts));
+                document.getElementById("count-" + weaponType).textContent = weaponCounts[weaponType];
+
+                window.dispatchEvent(new CustomEvent('weaponChange', {
+                    detail: { weapon: weaponType }
+                }));
+            }
+        }
+
+        window.addEventListener('load', () => {
+            setTimeout(initML, 500);
+        });
+    </script>
+</body>
+</html>

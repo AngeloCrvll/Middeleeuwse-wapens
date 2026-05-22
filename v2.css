@@ -1,0 +1,106 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    height: 100vh;
+}
+
+/* MAIN CONTAINER */
+.container {
+    display: grid;
+    grid-template-columns: 2fr auto 3fr;
+    height: 100%;
+    width: 100%;
+    padding: 20px;
+}
+
+/* LINES */
+.horizontalLine {
+    height: 2px;
+    width: 100%;
+    background: black;
+}
+
+.verticalLine {
+    width: 2px;
+    height: 100%;
+    background: black;
+}
+
+/* LEFT */
+.left {
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    padding-right: 20px;
+    height: 100%;
+}
+
+/* 3D BOX */
+.TreeD {
+    justify-self: center;
+    align-self: center;
+    width: 60%;
+    max-height: 100%;
+    aspect-ratio: 1 / 1;
+    background: grey;
+}
+
+/* RIGHT */
+.right {
+    display: grid;
+    grid-template-rows: auto auto auto 1fr;
+    padding-left: 20px;
+}
+
+/* CONTROLS */
+.controls {
+    display: grid;
+    gap: 25px;
+}
+
+.control {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+    gap: 10px;
+}
+
+.hand {
+    width: 40px; /* FIXED size instead of vw */
+}
+
+/* TITLE */
+.select {
+    text-align: center;
+    margin: 15px 0;
+}
+
+/* CHOICES */
+.choices {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.choice {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    justify-items: center;
+    gap: 10px;
+}
+
+/* IMAGE BOX */
+.img {
+    width: 100%;
+    aspect-ratio: 1 / 1.4;
+    background: grey;
+}
+
+/* EYE */
+.eye {
+    width: 18px;
+    justify-self: start;
+}
